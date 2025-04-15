@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+asyncio
+sqlalchemy[asyncio]
+asyncpg
+pydantic
+aiohttp
+pyjwt
+bcrypt
+email-validator
+python-multipart

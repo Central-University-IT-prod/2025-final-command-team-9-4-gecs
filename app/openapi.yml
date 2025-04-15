@@ -1,0 +1,825 @@
+openapi: 3.0.3
+info:
+  title: LoyalT Platform API
+  version: "0.1.0"
+  description: >
+    API для управления и удобной автоматизации программ лояльности.
+servers:
+  - url: http://prod-team-9-0pgnjd2b.REDACTED
+  - url: https://prod-team-9-0pgnjd2b.REDACTED
+  - url: http://localhost:8080
+tags:
+  - name: Business 
+    description: "Управление бизнесами: регистрация, авторизация и обновление информации о бизнесах"
+  - name: Clients
+    description: "Управление клиентами: авторизация и обновление информации о клиентах"
+  - name: Programs
+    description: "Управление программами лояльности: создание, активация и обновление информации о программах лояльности"
+  - name: Statistics
+    description: "Показ статистики по программам лояльности или бизнесу"
+
+paths:
+  # Business 
+  /api/business/register:
+    post:
+      tags:
+        - Business
+      summary: Регистрация нового бизнес-аккаунта
+      description: Регистрирует новый бизнес-аккаунт в системе и возвращает токен
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessRegister"
+
+      responses:
+        '200':
+          description: Успешная регистрация бизнес аккаунта
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessToken"
+
+        '400':
+          $ref: "#/components/responses/Response400"
+        
+        '409':
+          $ref: "#/components/responses/Response409"
+          
+  /api/business/login:
+    post:
+      tags:
+        - Business
+      summary: Вход в аккаунт бизнеса.
+      description: Получение нового токена по логину и паролю. 
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+
+      responses:
+        '200':
+          description: Успешный вход в бизнес аккаунт
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessToken"
+
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+
+  /api/business/info:
+    get:
+      tags:
+        - Business
+      summary: Получение данных бизнеса
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Успешное получение данных бизнеса
+          content:
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/BusinessInfo"
+        '401':
+          $ref: "#/components/responses/Response401"
+
+    patch:
+      tags:
+        - Business
+      summary: Изменение данных бизнеса
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessRegister"
+      responses:
+        '200':
+          description: Успешное изменение данных бизнеса
+          content:
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/BusinessInfo"
+
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+
+  /api/business/info/image:
+    post:
+      tags:
+        - Business
+      summary: Добавить изображение в профиль
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  maxLength: 10485760
+      responses:
+        '201':
+          description: Картинка добавлена.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Image"
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+
+  /api/business/check_id:
+    post:
+      tags:
+        - Business
+      summary: Получение информации о паре программа - пользователь
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Временный токен идентификации карточки пользователя
+              properties:
+                token:
+                  description: Временный токен идентификации карточки пользователя
+                  type: string
+      responses:
+        '200':
+          description: Успешное получение информации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgramClientScheme"
+
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+
+  /api/business/{id}/image:
+    get:
+      tags:
+        - Business
+      summary: Получить изображение бизнеса
+      parameters:
+        - in: path
+          required: true
+          name: id
+          schema:
+            type: string
+            format: uuid4
+      responses:
+        '200':
+          description: Картинка
+          content:
+            image/png: {}
+        '204':
+          description: Нет картинки
+  
+  /api/business/programs:
+    get:
+      tags:
+        - Business 
+      summary: Получение программ бизнеса
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Успешное получение программ бизнеса
+          content:
+            application/json:
+              schema:  
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProgramGet"
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+        
+  /api/business/redeem_id:
+    post:
+      tags:
+        - Business  
+      summary: Зачисление баллов на карточку пользователя  
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Временный токен идентификации карточки пользователя
+              properties:
+                token:
+                  description: Временный токен идентификации карточки пользователя
+                  type: string
+      responses:
+        '204':
+          description: Успешное зачисление
+
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+
+        '403':
+          $ref: "#/components/responses/Response403"
+  
+
+  /api/clients/new:
+    post:
+      tags:
+        - Clients
+      summary: Создание нового пользователя
+      description: Создание нового аккаунта пользователя без данных
+      responses:
+        '201':
+          description: Успешное создание нового пользователя
+          content:
+            application/json:
+              schema: 
+                type: object
+                properties:
+                  token:
+                    type: string
+
+  /api/clients/profile:
+    get:
+      summary: Получение профиля пользователя
+      tags:
+        - Clients
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Профиль пользователя пуст
+
+        '200':
+          description: Успешное получение профиля
+          content:
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/ClientProfile"
+                
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+
+    patch:
+      summary: Изменение профиля пользователя
+      tags:
+        - Clients
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema: 
+              $ref: "#/components/schemas/ClientEdit"
+      responses:
+        '200':
+          description: Успешное изменение профиля
+          content:
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/ClientProfile"
+                
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '403':
+          $ref: "#/components/responses/Response403"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+
+  /api/clients/login:
+    post:
+      summary: Аунтефикация пользователя
+      tags:
+        - Clients
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientLogin"
+      responses:
+        '200':
+          description: Успешная аунтефикация
+          content:
+            application/json:
+              schema: 
+                type: object
+                properties:
+                  token:
+                    type: string
+        '400':
+          $ref: "#/components/responses/Response400"
+        
+        '401':
+          $ref: "#/components/responses/Response401"
+        
+
+  /api/clients/get_id:
+    get:
+      summary: Получение токена идентификации пользователя
+      tags:
+        - Clients
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Успешное получение временного токена идентификации
+          content:
+            application/json:
+              schema: 
+                type: object
+                properties:
+                  name:
+                    type: string
+                  token:
+                    type: string
+                  
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+
+  /api/clients/get_programs:
+    get:
+      summary: Получение открытых программ лояльности
+      tags:
+        - Clients
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Программы лояльности, открытые у клиента
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProgramClientSchemeFeed"
+        '400':
+          $ref: "#/components/responses/Response400"
+        
+        '401':
+          $ref: "#/components/responses/Response401"
+
+  /api/programs/create:
+    post:
+      summary: Создание программы лояльности
+      tags:
+        - Programs
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema: 
+              $ref: "#/components/schemas/ProgramAdd"
+      responses:
+        '201':
+          description: Успешное создание программы лояльности
+          content:
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/ProgramGet"
+
+        '400':
+          $ref: "#/components/responses/Response400"
+        
+        '401':
+          $ref: "#/components/responses/Response401"
+
+  /api/programs/{id}:
+    get:
+      summary: Получение программы по ID
+      tags:
+        - Programs
+      parameters:
+        - in: path
+          required: true
+          name: id
+          schema:
+            type: string
+            format: uuid4
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Успешное получение программы лояльности
+          content:
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/ProgramGet"
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '403':
+          $ref: "#/components/responses/Response403"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+  
+        '404':
+          $ref: "#/components/responses/Response404"
+
+    patch:
+      summary: Редактирование программы лояльности
+      tags:
+        - Programs
+      parameters:
+        - in: path
+          required: true
+          name: id
+          schema:
+            type: string
+            format: uuid4
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema: 
+              $ref: "#/components/schemas/ProgramAdd"
+      responses:
+        '200':
+          description: Успешное редактирование программы лояльности
+          content:
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/ProgramGet"
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '403':
+          $ref: "#/components/responses/Response403"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+  
+        '404':
+          $ref: "#/components/responses/Response404"
+
+    delete:
+      summary: Удаление программы лояльности
+      tags:
+        - Programs
+      parameters:
+        - in: path
+          required: true
+          name: id
+          schema:
+            type: string
+            format: uuid4
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Программа успешно удалена
+
+        '400':
+          $ref: "#/components/responses/Response400"
+
+        '403':
+          $ref: "#/components/responses/Response403"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+
+        '404':
+          $ref: "#/components/responses/Response404"
+
+  /api/statistics/business:
+    get:
+      summary: Выводит статистику бизнеса
+      tags:
+        - Statistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Статистика
+          content:
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/StatisticsBusiness"
+
+        '401':
+          $ref: "#/components/responses/Response401"
+
+        '400':
+          $ref: "#/components/responses/Response400"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    BusinessRegister:
+      type: object
+      description: Обьект, представляющий поле регистрации для бизнеса
+      properties:
+        email:
+          type: string
+          description: Уникальная почта бизнес аккаунта
+        password:
+          type: string
+          description: Пароль бизнес аккаунта 
+        name:
+          type: string
+          description: Название партнёра
+        description:
+          type: string
+          description: Описание бизнеса партнёра
+        location:
+          type: string
+          description: Гипотетическая локация партнёра
+    
+    BusinessInfo:
+      type: object 
+      description: Обьект, представляющий поле изменения параметров партнёра
+      properties:
+        id:
+          type: string
+          format: uuid4
+        email:
+          type: string
+          description: Уникальный логин бизнес аккаунта
+        name:
+          type: string
+          description: Название партнёра
+        description:
+          type: string
+          description: Описание бизнеса партнёра
+        location:
+          type: string
+          description: Гипотетическая локация партнёра
+    
+    BusinessToken:
+      type: object
+      description: Обьект, представляющий информацию о токене и UUID партнёра
+      properties:
+        token:
+          type: string
+          description: Уникальный токен сессии бизнеса
+
+    ClientLogin:
+      type: object
+      description: Объект, позволяющий произвести аунтефикацию пользователя
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    ClientEdit:
+      type: object
+      description: Обьект, представляющий информацию о профиле пользователя
+      required:
+        - name
+        - email
+        - gender
+        - location
+        - age
+        - password
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        gender:
+          type: string
+        location:
+          type: string
+        password:
+          type: string
+        age:
+          type: integer
+
+
+    ClientProfile:
+      type: object
+      description: Обьект, представляющий информацию о профиле пользователя
+      required:
+        - name
+        - email
+        - gender
+        - location
+        - age
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        gender:
+          type: string
+        location:
+          type: string
+        age:
+          type: integer
+
+    ProgramAdd:
+      type: object
+      description: Обьект, представляющий программу лояльности
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        points_per_activation:
+          type: integer
+        target:
+          type: integer
+        reward:
+          type: string
+        max_claims:
+          type: integer
+
+    Image:
+      type: object
+      description: Обьект, представляющий картинку
+      properties:
+        image_id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор картинки (UUID).
+
+    ProgramGet:
+      type: object
+      description: Обьект, представляющий программу лояльности
+      properties:
+        id:
+          type: string
+          format: uuid4
+        name:
+          type: string
+        type:
+          type: string
+        points_per_activation:
+          type: integer
+        target:
+          type: integer
+        reward:
+          type: string
+        max_claims:
+          type: integer
+  
+    ProgramClientScheme:
+      type: object
+      description: Обьект, представляющий пару программа - пользователь
+      properties:
+        name:
+          type: string
+        points_per_activation:
+          type: integer
+        redeemable:
+          type: boolean
+        target:
+          type: integer
+        reward:
+          type: string
+        points:
+          type: integer
+
+    ProgramClientSchemeFeed:
+      type: object
+      description: Обьект, представляющий пару программа - пользователь
+      properties:
+        business_name:
+          type: string
+        business_id:
+          type: string
+          format: uuid4
+        name:
+          type: string
+        type:
+          type: string
+        target:
+          type: integer
+        reward:
+          type: string
+        points:
+          type: integer
+
+    StatisticsBusiness:
+      type: object
+      description: Обьект, представляющий статистику
+      properties:
+        total_rewarded:
+          type: integer
+        total_points:
+          type: integer
+        total_clients:
+          type: integer
+        male_count:
+          type: integer
+        female_count:
+          type: integer
+        children:
+          type: integer
+        youngsters:
+          type: integer
+        middle_aged:
+          type: integer
+        old:
+          type: integer
+        very_old:
+          type: integer
+
+  responses:
+      Response400:
+        description: Ошибка в данных запроса.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                detail:
+                  type: string
+                  example: "Bad request"
+
+      Response404:
+        description: Запрашиваемый обьект не найден. 
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                detail:
+                  type: string
+                  example: "Not Found"
+      
+      Response409:
+        description: Запрашиваемый обьект найден и не может быть заменён
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                detail:
+                  type: string
+                  example: "Conflict"
+             
+      Response403:
+        description: У вас нет доступа 
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                detail:
+                  type: string
+                  example: "Forbidden"
+
+      Response401:
+        description: Вы не авторизованы
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                detail:
+                  type: string
+                  example: "Unauthorized"
+

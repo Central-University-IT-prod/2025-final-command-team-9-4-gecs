@@ -1,0 +1,99 @@
+services:
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: prod-team-9-0pgnjd2b.REDACTED
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - frontend_dist:/srv
+      - caddy_data:/data
+      - caddy_config:/config
+
+  frontend:
+    build: frontend
+    volumes:
+      - frontend_dist:/app/dist
+
+  app:
+    build:
+      context: app
+      dockerfile: Dockerfile
+    container_name: app
+    ports:
+      - "8080:80"
+    environment:
+      PORT: 80
+      SALT_COST: 10
+      SEAWEED_URL: http://seaweedfs-filer:8888
+      POSTGRES_URL: postgresql+asyncpg://postgres:loyalt@postgres:5432/loyal
+      JWT_SECRET: REDACTED
+      REDIS_URL: redis://redis
+      SITE_ADDRESS: prod-team-9-0pgnjd2b.REDACTED
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://REDACTED/api/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  seaweedfs-master:
+    image: chrislusf/seaweedfs:latest
+    container_name: seaweedfs-master
+    command: "master -ip=seaweedfs-master"
+    restart: always
+
+  seaweedfs-volume:
+    image: chrislusf/seaweedfs:latest
+    container_name: seaweedfs-volume
+    command: 'volume -mserver="seaweedfs-master:9333" -ip=seaweedfs-volume -port=8899 -dir="/data"'
+    depends_on:
+      - seaweedfs-master
+    restart: always
+    volumes:
+      - seaweedfs-data:/data
+
+  seaweedfs-filer:
+    image: chrislusf/seaweedfs:latest
+    container_name: seaweedfs-filer
+    command: "filer -master=seaweedfs-master:9333"
+    restart: always
+    depends_on:
+      - seaweedfs-master
+      - seaweedfs-volume
+    logging:
+      driver: "none"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8888/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:17
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: loyalt
+      POSTGRES_DB: loyal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
+  frontend_dist:
+  caddy_data:
+  caddy_config:
+  seaweedfs-data: 
